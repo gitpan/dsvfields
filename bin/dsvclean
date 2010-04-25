@@ -1,0 +1,20 @@
+#!/bin/sh
+# ABSTRACT = 'take out comments and blanks of stdin useful for dsv metaformat'
+
+
+case $1 in
+   -h)
+      SNAME=`basename $0`
+      echo "$SNAME [OPTION].. "
+      echo
+      echo "take out comments and blanks of stdin useful for dsv metaformat"
+      echo '   -h    help'
+      echo
+      exit;;
+esac
+
+
+
+
+grep -v '^#' | grep -i '\w'
+

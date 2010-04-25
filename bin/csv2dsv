@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+# ABSTRACT = 'filter csv into dsv'
+use strict;
+
+
+
+
+
+
+while (<>){
+   my $line = $_;
+   $line=~s{"([^"]+)"}{
+      
+      my $v=$1;
+      $v=~s/,/ /g; 
+      $v
+
+
+      }xge;
+   $line=~s/\s{2,}/ /g;
+   $line=~s/^\s+|\s+$//g;
+   
+   printf "%s\n", $line;
+}

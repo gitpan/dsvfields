@@ -1,0 +1,12 @@
+MANIFEST
+Makefile.PL
+README
+bin/csv2dsv
+bin/dsvclean
+bin/dsvfields
+t/00.t
+t/01-commas.t
+t/gmail-contacts.dsv
+t/gmail-to-outlook.csv
+t/gmail-to-outlook.dsv
+META.yml                                 Module meta-data (added by MakeMaker)

@@ -1,0 +1,240 @@
+#!/usr/bin/perl -w
+use warnings;
+use strict;
+#use Smart::Comments '###';
+use Getopt::Std::Strict 'hcFf:v';
+use LEOCHARRE::Dir ':all';
+use LEOCHARRE::Basename ':all';
+our $VERSION = sprintf "%d.%02d", q$Revision: 1.4 $ =~ /(\d+)/g;
+
+$opt_h and print STDERR usage() and exit;
+
+$opt_v and print $VERSION and exit;
+# ABSTRACT = 'given stdin dsv, print FIELD..'
+
+
+
+my $FIELDSEPARATOR;
+my $FIELDLINE;
+
+###############################################################################
+# begin get stdins
+#
+# @STDINS:
+#  each element is anon array
+#     first element is filename, second element is content text
+#
+# @STDIN:
+#  each element is a line of stdin
+#
+# $STDIN:
+#  all text from stdin
+#
+my (@STDINS, $_stdin, @STDIN, $STDIN);
+while(<>){
+   if ( $_=~s/^\s*#\s*fields\s*=\s*(.+)//i ){
+      $FIELDLINE=$1;
+      next;
+   }
+   $_=~/^\s*#/ and next; # skip comments
+   $_=~/^$|^\s+$/ and next; # skip blanks
+   $_stdin.=$_;
+   $STDIN .=$_;
+   push @STDIN, $_;
+   if( eof ){
+      push @STDINS, [$ARGV, $_stdin]; # argv holds filename ARGV or "-"
+      $_stdin = undef;
+   }
+}
+# end get stdins
+###############################################################################
+
+
+# first line will be the fields.
+# unless it was picked up already..
+$FIELDLINE ||= shift @STDIN;
+
+# parse the field line.
+$FIELDLINE or die("can't get fieldline");
+$FIELDLINE=~s/^['"\s]+|['"\s]+$//g;
+
+my @FIELDS;
+POSSIBLE_DELIMITER: for my $possible_delimiter_regex ( ':', ',', '\s+' ){
+
+   if ($FIELDLINE=~/$possible_delimiter_regex/){
+      
+      my @fields = split(/$possible_delimiter_regex/, $FIELDLINE );
+      if ( scalar @fields > 1 ){
+         # found it
+         for my $fn( @fields ){
+            $fn=~s/[^\s\w]//g;
+            $fn=~s/^\s+|\s+$//g;
+            push @FIELDS, $fn;
+         }
+         #@FIELDS = map { s/\s+/ /g; s/^\s+|\s+$//g; $_   } @fields;
+         $FIELDSEPARATOR=$possible_delimiter_regex;
+         $FIELDSEPARATOR=~s/\\s\+/ /; # if \s+, we need to replace with a space, to remember
+         last POSSIBLE_DELIMITER;
+      }
+   }
+}
+@FIELDS or die("can't figure out fields.");
+
+### @FIELDS
+### $FIELDLINE
+### $FIELDSEPARATOR
+
+my %FIELD; # i know there's an easy way to do this in perl!!! how??
+
+for my $i (0 .. (scalar @FIELDS -1) ){
+   $FIELD{$FIELDS[$i]}=$i;
+}
+# now we have  name => num
+
+
+#ok.. now we need to know what fields were asked for on the cmdline
+my @fieldnums_requested;
+my @fieldnames_requested = split(/\W+/, $opt_f); # for transparency
+
+@fieldnames_requested and scalar @fieldnames_requested or die("missing fieldnames requested");
+for my $field_name(@fieldnames_requested){
+   $field_name=~/^[a-zA-Z0-9 _]+$/ or die("bad field name: '$field_name'");
+   exists $FIELD{$field_name} or die("Field '$field_name' does not exist.");
+   #push @fieldnums_requested, ($FIELD{$field_name} + 1); # + 1 for awk
+   push @fieldnums_requested, $FIELD{$field_name};
+}
+
+### @fieldnums_requested
+### @fieldnames_requested
+
+
+###############################################################################
+# ok now we should have what we need 
+# field separator, names of fields, and numbers of fields
+
+unless($opt_F){
+   my $field_line = join($FIELDSEPARATOR, @fieldnames_requested);
+   if ($opt_c){ # comment the fields line?
+      $field_line="# fields = '$field_line'";
+   }
+   print "$field_line\n";
+}
+
+# the data... # this is basically sorta.. what awk would do, and do well.. hmm..
+for my $line (@STDIN){
+   my @values = split(/$FIELDSEPARATOR/, $line);
+   my @wanted = map { $_=~s/^\s+|\s+$//g; $_ } map { $values[$_] } @fieldnums_requested;
+
+   printf "%s\n", join($FIELDSEPARATOR,@wanted);
+}
+
+
+
+sub usage {q{dsvfields [OPTION].. 
+given stdin dsv, print fields by name
+   
+   -F            don't output fields line 
+   -c            comment the fields line
+   -f   string   fields, separated by non word chars (limitation)
+   -h            help
+   -v            version
+
+Try 'man dsvfields' for more info.
+}}
+
+
+
+__END__
+
+=pod
+
+=head1 NAME
+
+dsvfields - given stdin dsv, print fields by name
+
+=head1 DESCRIPTION
+
+Essentially this can transform dsv input to strip down to something else
+This makes it easy to select fields, because you can do it by name instead
+of by position.
+
+=head1 USAGE
+
+dsvfields [OPTIONS]..
+
+   -F            don't output fields line 
+   -c            comment the fields line
+   -f   string   fields, separated by non word chars (limitation)
+   -h            help
+   -v            version
+
+=head2 USAGE EXAMPLES
+
+For these examples our data.dsv is:
+
+   # this is a table description, it is a comment
+   # the next line however, will be deemed to be the fields line
+   # fields = 'name:age:occupation'
+   leo   : 34 : developer
+   jane  : 21 : chemist
+   marco : 45 : vagrant
+
+Let's output age, and occupation
+   cat data.dsv | dsvfields -f 'age occupation'
+
+Just age and then name, no fields line
+   cat data.dsv | dsvfields -f 'age name'
+
+Same but and sort by age..
+   cat data.dsv | dsvfields -F -f 'age name' | sort
+
+Same but sort by name, just flip the order..
+   cat data.dsv | dsvfields -F -f 'name age' | sort
+
+=head1 CAVEATS
+
+This will only work with dsv streams that have field names
+
+The first line must have the field names
+the field separator in that line must be the same as in the data
+
+Example correct field name lines with corresponding data line
+
+   # fields = 'age name'
+   leo 34
+   
+   # fields = "age:name"
+   leo:34
+   
+   # FIELDS=age:name
+   leo:34
+   
+   age name
+   leo 34
+   
+   age,name
+   leo,34
+   
+   age:name
+   leo:34
+
+=head1 AUTHOR
+
+Leo Charre leocharre at cpan dot org
+
+=head1 LICENSE
+
+This package is free software; you can redistribute it and/or modify it under the same terms as Perl itself, i.e., under the terms of the "Artistic License" or the "GNU General Public License".
+
+=head1 DISCLAIMER
+
+This package is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See the "GNU General Public License" for more details.
+
+=cut
+
+
+
+   
+

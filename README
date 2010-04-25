@@ -1,0 +1,100 @@
+
+================================================================================
+
+dsvfields - given stdin dsv, print fields by name
+
+DESCRIPTION
+    Essentially this can transform dsv input to strip down to something else
+    This makes it easy to select fields, because you can do it by name
+    instead of by position.
+
+USAGE
+    dsvfields [OPTIONS]..
+
+       -F            don't output fields line 
+       -c            comment the fields line
+       -f   string   fields, separated by non word chars (limitation)
+       -h            help
+       -v            version
+
+  USAGE EXAMPLES
+    For these examples our data.dsv is:
+
+       # this is a table description, it is a comment
+       # the next line however, will be deemed to be the fields line
+       # fields = 'name:age:occupation'
+       leo   : 34 : developer
+       jane  : 21 : chemist
+       marco : 45 : vagrant
+
+    Let's output age, and occupation cat data.dsv | dsvfields -f 'age
+    occupation'
+
+    Just age and then name, no fields line cat data.dsv | dsvfields -f 'age
+    name'
+
+    Same but and sort by age.. cat data.dsv | dsvfields -F -f 'age name' |
+    sort
+
+    Same but sort by name, just flip the order.. cat data.dsv | dsvfields -F
+    -f 'name age' | sort
+
+CAVEATS
+    This will only work with dsv streams that have field names
+
+    The first line must have the field names the field separator in that
+    line must be the same as in the data
+
+    Example correct field name lines with corresponding data line
+
+       # fields = 'age name'
+       leo 34
+   
+       # fields = "age:name"
+       leo:34
+   
+       # FIELDS=age:name
+       leo:34
+   
+       age name
+       leo 34
+   
+       age,name
+       leo,34
+   
+       age:name
+       leo:34
+
+AUTHOR
+    Leo Charre leocharre at cpan dot org
+
+LICENSE
+    This package is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself, i.e., under the terms of the
+    "Artistic License" or the "GNU General Public License".
+
+DISCLAIMER
+    This package is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+    See the "GNU General Public License" for more details.
+
+
+--------------------------------------------------------------------------------
+
+
+
+REQUIRES
+
+Getopt::Std::Strict: 1.01
+Test::Simple: 0
+
+
+INSTALL
+
+   perl Makefile.PL
+   make install
+
+
+
